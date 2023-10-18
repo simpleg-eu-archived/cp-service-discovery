@@ -1,0 +1,96 @@
+name: CI/CD
+
+on:
+  push:
+  pull_request:
+
+env:
+  CP_ENVIRONMENT: 1 # Environment mode: 0 Development, 1 Github Actions, 2 Production
+    
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      src: ${{ steps.filter.outputs.src }}
+      config: ${{ steps.filter.outputs.config }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - uses: dorny/paths-filter@v2
+        id: filter
+        with:
+          filters: |
+            src:
+              - 'src/**'
+            config:
+                - 'Dockerfile'
+                - '.github/workflows/ci-cd.yml'
+                - 'build.gradle'
+                - 'settings.gradle'
+  ci:
+    needs: changes
+    runs-on: ubuntu-latest
+
+    container: eclipse-temurin:17-jdk-alpine
+          
+    timeout-minutes: 10
+
+    if: ${{ needs.changes.outputs.src == 'true' || needs.changes.outputs.config == 'true' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3 
+      - name: Build
+        run: |
+          ./gradlew build
+  cd:
+    needs: ci
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Replace placeholder version
+        run: |
+          sed -i 's/5123.0.0/${{ vars.MAJOR_VERSION }}.${{ vars.MINOR_VERSION }}.${{ env.PATCH_VERSION }}/' Cargo.toml
+          echo "Version: ${{ vars.MAJOR_VERSION }}.${{ vars.MINOR_VERSION }}.$PATCH_VERSION"
+        env:
+          PATCH_VERSION: ${{ github.run_number }}
+      - name: Build
+        run: |
+          ./gradlew build
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN }}
+          PATCH_VERSION: ${{ github.run_number }}
+        with:
+          tag_name: v${{ vars.MAJOR_VERSION }}.${{ vars.MINOR_VERSION }}.${{ env.PATCH_VERSION }}
+          release_name: v${{ vars.MAJOR_VERSION }}.${{ vars.MINOR_VERSION }}.${{ env.PATCH_VERSION }}
+          draft: false
+          prerelease: false
+      - name: Upload release asset
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./target/release/cp-organization
+          asset_name: cp-organization
+          asset_content_type: application/x-executable
+      - name: Containerize & push
+        env:
+          PATCH_VERSION: ${{ github.run_number }}
+        run: |
+          # Docker image build
+          docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+          docker build -t gabriel0simpleg/cp-service-discovery:${{ vars.MAJOR_VERSION }}.${{ vars.MINOR_VERSION }}.${{ env.PATCH_VERSION }} .
+          docker tag gabriel0simpleg/cp-service-discovery:${{ vars.MAJOR_VERSION }}.${{ vars.MINOR_VERSION }}.${{ env.PATCH_VERSION }} gabriel0simpleg/cp-service-discovery:latest
+          docker push gabriel0simpleg/cp-service-discovery:${{ vars.MAJOR_VERSION }}.${{ vars.MINOR_VERSION }}.${{ env.PATCH_VERSION }}
+          docker push gabriel0simpleg/cp-service-discovery:latest
