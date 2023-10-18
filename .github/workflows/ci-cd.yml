@@ -6,6 +6,7 @@ on:
 
 env:
   CP_ENVIRONMENT: 1 # Environment mode: 0 Development, 1 Github Actions, 2 Production
+  ARTIFACT_NAME: 
     
 jobs:
   changes:
@@ -41,19 +42,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3 
-      - name: Build
-        run: |
-          ./gradlew build
-  cd:
-    needs: ci
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
       - name: Replace placeholder version
         run: |
           sed -i 's/5123.0.0/${{ vars.MAJOR_VERSION }}.${{ vars.MINOR_VERSION }}.${{ env.PATCH_VERSION }}/' build.gradle
@@ -63,27 +51,48 @@ jobs:
       - name: Build
         run: |
           ./gradlew build
+      - uses: actions/upload-artifact@v3
+        with:
+            name: ${{ env.ARTIFACT_NAME }}
+            path: ./build/libs/eureka.jar
+  cd:
+    needs: ci
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Create build directory
+        run: |
+            mkdir build
+            mkdir ./build/libs
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+            name: ${{ env.ARTIFACT_NAME }}
+            path: ./build/libs
       - name: Create release
         id: create_release
         uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.TOKEN }}
-          PATCH_VERSION: ${{ github.run_number }}
+            GITHUB_TOKEN: ${{ secrets.TOKEN }}
+            PATCH_VERSION: ${{ github.run_number }}
         with:
-          tag_name: v${{ vars.MAJOR_VERSION }}.${{ vars.MINOR_VERSION }}.${{ env.PATCH_VERSION }}
-          release_name: v${{ vars.MAJOR_VERSION }}.${{ vars.MINOR_VERSION }}.${{ env.PATCH_VERSION }}
-          draft: false
-          prerelease: false
+            tag_name: v${{ vars.MAJOR_VERSION }}.${{ vars.MINOR_VERSION }}.${{ env.PATCH_VERSION }}
+            release_name: v${{ vars.MAJOR_VERSION }}.${{ vars.MINOR_VERSION }}.${{ env.PATCH_VERSION }}
+            draft: false
+            prerelease: false
       - name: Upload release asset
         id: upload-release-asset
         uses: actions/upload-release-asset@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.TOKEN }}
+            GITHUB_TOKEN: ${{ secrets.TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./target/release/cp-organization
-          asset_name: cp-organization
-          asset_content_type: application/x-executable
+            upload_url: ${{ steps.create_release.outputs.upload_url }}
+            asset_path: ./build/libs/eureka.jar
+            asset_name: eureka.jar
+            asset_content_type: application/java-archive
       - name: Containerize & push
         env:
           PATCH_VERSION: ${{ github.run_number }}
@@ -93,3 +102,14 @@ jobs:
           docker tag gabriel0simpleg/cp-service-discovery:${{ vars.MAJOR_VERSION }}.${{ vars.MINOR_VERSION }}.${{ env.PATCH_VERSION }} gabriel0simpleg/cp-service-discovery:latest
           docker push gabriel0simpleg/cp-service-discovery:${{ vars.MAJOR_VERSION }}.${{ vars.MINOR_VERSION }}.${{ env.PATCH_VERSION }}
           docker push gabriel0simpleg/cp-service-discovery:latest
+  clean:
+    if: always()
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+        - name: Remove artifact
+          uses: actions/checkout@v2
+          with:
+            name: ${{ env.ARTIFACT_NAME }}
