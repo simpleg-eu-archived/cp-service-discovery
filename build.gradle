@@ -6,10 +6,11 @@ plugins{
 
 ext {
     set('springCloudVersion', "2022.0.3")
-    name = 'Eureka Server'
-    description = 'Eureka Server demo project' 
+    name = 'Cuplan Eureka server'
+    description = 'Basic wrapper around the Eureka server' 
     version='0.0.1-SNAPSHOT'
     sourceEncoding='UTF-8'
+    set('spring-security.version', "6.1.5")
 }
 
 repositories {
@@ -28,6 +29,9 @@ dependencyManagement {
 
 dependencies {
     implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-server'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.security:spring-security-oauth2-resource-server'
+    implementation 'org.springframework.security:spring-security-oauth2-jose'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }

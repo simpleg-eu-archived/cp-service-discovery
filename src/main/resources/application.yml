@@ -5,6 +5,13 @@ spring:
     name: eureka
   config:
     import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888/}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${CP_SERVICE_DISCOVERY_OAUTH_ISSUER_URI}
+          jwk-set-uri: ${CP_SERVICE_DISCOVERY_OAUTH_JWK_SET_URI}
+          audiences: ${CP_SERVICE_DISCOVERY_OAUTH_AUDIENCE}
 eureka:
   client:
     registerWithEureka: false
