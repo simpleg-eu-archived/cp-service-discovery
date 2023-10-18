@@ -88,7 +88,6 @@ jobs:
         env:
           PATCH_VERSION: ${{ github.run_number }}
         run: |
-          # Docker image build
           docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
           docker build -t gabriel0simpleg/cp-service-discovery:${{ vars.MAJOR_VERSION }}.${{ vars.MINOR_VERSION }}.${{ env.PATCH_VERSION }} .
           docker tag gabriel0simpleg/cp-service-discovery:${{ vars.MAJOR_VERSION }}.${{ vars.MINOR_VERSION }}.${{ env.PATCH_VERSION }} gabriel0simpleg/cp-service-discovery:latest
