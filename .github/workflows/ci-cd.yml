@@ -32,8 +32,6 @@ jobs:
   ci:
     needs: changes
     runs-on: ubuntu-latest
-
-    container: eclipse-temurin:11-jdk-alpine
           
     timeout-minutes: 10
 
