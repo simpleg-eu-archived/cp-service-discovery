@@ -3,8 +3,6 @@ server:
 spring:
   application:
     name: cp-service-discovery
-  config:
-    import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888/}
   security:
     oauth2:
       resourceserver:
