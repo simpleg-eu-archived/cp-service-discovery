@@ -6,8 +6,8 @@ on:
 
 env:
   CP_ENVIRONMENT: 1 # Environment mode: 0 Development, 1 Github Actions, 2 Production
-  ARTIFACT_NAME: 
-    
+  ARTIFACT_NAME: le_baguette
+  
 jobs:
   changes:
     runs-on: ubuntu-latest
